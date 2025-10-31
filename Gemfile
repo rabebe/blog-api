@@ -50,4 +50,10 @@ group :development, :test do
 
   # Use brcypt for hashing passwords
   gem "bcrypt", "~> 3.1.20"
+
+  # For JSON Web Token (JWT) management
+  gem "jwt"
+
+  # Local environment variables
+  gem "dotenv-rails"
 end
