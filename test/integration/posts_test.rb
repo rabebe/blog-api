@@ -2,6 +2,8 @@ require "test_helper"
 
 class PostAuthorizationTest < ActionDispatch::IntegrationTest
   # --- Setup: Create Admin User and a Post for testing ---
+  attr_reader :admin_password_text, :admin_email, :admin
+
 
   def setup
     # Define safe credentials for testing in CI
@@ -36,7 +38,7 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   def admin_auth_headers
-    post "/login", params: { email: @admin.email, password: @admin_password_text }, as: :json
+    post "/login", params: { email: admin.email, password: admin_password_text }, as: :json
     token = json_response["token"]
 
     # Return the headers hash expected by your ApplicationController
