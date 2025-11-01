@@ -13,8 +13,8 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
     # CRITICAL: Create the single admin user for the site
     @admin = User.create!(
       username: "authoruser",
-      email: admin_email,
-      password: admin_password,
+      email: @admin_email,
+      password: @admin_password_text,
       password_confirmation: admin_password,
       is_admin: true # Assuming your User model has this attribute, essential for authorize_admin
     )
