@@ -19,6 +19,9 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
       is_admin: true # Assuming your User model has this attribute, essential for authorize_admin
     )
 
+    # Ensure the object in memory reflects the database state.
+    @admin.reload
+
     @test_post = Post.create!(
       title: "Test Post",
       body: "This is a test body content.",
