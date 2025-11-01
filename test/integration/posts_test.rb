@@ -3,6 +3,9 @@ require "test_helper"
 class PostAuthorizationTest < ActionDispatch::IntegrationTest
   # --- Setup: Create Admin User and a Post for testing ---
   def setup
+    # Define safe credentials for testing in CI
+    admin_email = ENV.fetch("ADMIN_EMAIL", "test_admin@ci.dev")
+    admin_password = ENV.fetch("ADMIN_PASSWORD", "testpassword123")
     # Clean slate
     User.delete_all
     Post.delete_all
@@ -10,9 +13,9 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
     # CRITICAL: Create the single admin user for the site
     @admin = User.create!(
       username: "authoruser",
-      email: ENV.fetch("ADMIN_EMAIL"),
-      password: ENV.fetch("ADMIN_PASSWORD"),
-      password_confirmation: ENV.fetch("ADMIN_PASSWORD"),
+      email: admin_email,
+      password: admin_password,
+      password_confirmation: admin_password,
       is_admin: true # Assuming your User model has this attribute, essential for authorize_admin
     )
 
