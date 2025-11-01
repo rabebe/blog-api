@@ -2,7 +2,13 @@ require "test_helper"
 
 class PostAuthorizationTest < ActionDispatch::IntegrationTest
   # --- Setup: Create Admin User and a Post for testing ---
+  attr_reader :admin_password_text, :admin_email, :admin
+
+
   def setup
+    # Define safe credentials for testing in CI
+    @admin_email = ENV["ADMIN_EMAIL"].present? ? ENV["ADMIN_EMAIL"].to_s : "admin@test.dev"
+    @admin_password_text = ENV["ADMIN_PASSWORD"].present? ? ENV["ADMIN_PASSWORD"].to_s.strip : "pAssWord12345"
     # Clean slate
     User.delete_all
     Post.delete_all
@@ -10,11 +16,14 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
     # CRITICAL: Create the single admin user for the site
     @admin = User.create!(
       username: "authoruser",
-      email: ENV.fetch("ADMIN_EMAIL"),
-      password: ENV.fetch("ADMIN_PASSWORD"),
-      password_confirmation: ENV.fetch("ADMIN_PASSWORD"),
-      is_admin: true # Assuming your User model has this attribute, essential for authorize_admin
+      email: @admin_email,
+      password: @admin_password_text,
+      password_confirmation: @admin_password_text,
+      is_admin: true
     )
+
+    # Ensure the object in memory reflects the database state.
+    @admin.reload
 
     @test_post = Post.create!(
       title: "Test Post",
@@ -29,10 +38,23 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   def admin_auth_headers
-    post "/login", params: { email: @admin.email, password: @admin.password }, as: :json
+    post "/login", params: { email: @admin.email, password: @admin_password_text }, as: :json
+
     token = json_response["token"]
 
-    # Return the headers hash expected by your ApplicationController
+    # --- CRITICAL DEBUGGING CHECK ---
+    # If the login failed, print response details to the console for exact error identification.
+    unless response.status == 200 && token.present?
+      puts "--- ADMIN LOGIN FAILED (Status: #{response.status}) ---"
+      puts "Attempted Login Email: #{@admin.email}"
+      puts "Attempted Login Password: #{@admin_password_text}"
+      # Print the error message received from the SessionsController
+      puts "Response Body: #{response.body}"
+      puts "--------------------"
+      return {}
+    end
+
+    # Return the headers hash expected by ApplicationController
     { "Authorization" => "Bearer #{token}" }
   end
 
@@ -48,7 +70,7 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
   test "unauthorized user cannot create post" do
     assert_no_difference("Post.count") do
       # No headers passed
-      post "/posts", params: { post: { title: "New Post", body: "Content"  } }, as: :json
+      post "/posts", params: { post: { title: "New Post", body: "Content" } }, as: :json
     end
     assert_response :forbidden
   end
