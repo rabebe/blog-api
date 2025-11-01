@@ -38,7 +38,7 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   def admin_auth_headers
-    post "/login", params: { email: admin.email, password: admin_password_text }, as: :json
+    post "/login", params: { email: @admin.email, password: @admin_password_text }, as: :json
 
     token = json_response["token"]
 
@@ -46,8 +46,8 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
     # If the login failed, print response details to the console for exact error identification.
     unless response.status == 200 && token.present?
       puts "--- ADMIN LOGIN FAILED (Status: #{response.status}) ---"
-      puts "Attempted Login Email: #{admin.email}"
-      puts "Attempted Login Password: #{admin_password_text}"
+      puts "Attempted Login Email: #{@admin.email}"
+      puts "Attempted Login Password: #{@admin_password_text}"
       # Print the error message received from the SessionsController
       puts "Response Body: #{response.body}"
       puts "--------------------"
@@ -70,7 +70,7 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
   test "unauthorized user cannot create post" do
     assert_no_difference("Post.count") do
       # No headers passed
-      post "/posts", params: { post: { title: "New Post", body: "Content"  } }, as: :json
+      post "/posts", params: { post: { title: "New Post", body: "Content" } }, as: :json
     end
     assert_response :forbidden
   end
