@@ -2,8 +2,8 @@ require 'time'
 
 # 1. Define Secure Admin Credentials
 # The production application MUST set ADMIN_EMAIL environment variable.
-admin_email = ENV.fetch("ADMIN_EMAIL") { raise "ADMIN_EMAIL environment variable is not set." }
-admin_password = ENV.fetch("ADMIN_PASSWORD") { raise "ADMIN_EMAIL environment variable is not set." }
+admin_email = ENV.fetch("ADMIN_EMAIL", "admin@default.dev")
+admin_password = ENV.fetch("ADMIN_PASSWORD", "password123")
 
 # 2. Ensure Idempotency: Clear existing posts and users
 puts "Clearing existing data..."
