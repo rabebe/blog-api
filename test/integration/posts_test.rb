@@ -39,9 +39,22 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
 
   def admin_auth_headers
     post "/login", params: { email: admin.email, password: admin_password_text }, as: :json
+
     token = json_response["token"]
 
-    # Return the headers hash expected by your ApplicationController
+    # --- CRITICAL DEBUGGING CHECK ---
+    # If the login failed, print response details to the console for exact error identification.
+    unless response.status == 200 && token.present?
+      puts "--- ADMIN LOGIN FAILED (Status: #{response.status}) ---"
+      puts "Attempted Login Email: #{admin.email}"
+      puts "Attempted Login Password: #{admin_password_text}"
+      # Print the error message received from the SessionsController
+      puts "Response Body: #{response.body}"
+      puts "--------------------"
+      return {}
+    end
+
+    # Return the headers hash expected by ApplicationController
     { "Authorization" => "Bearer #{token}" }
   end
 
