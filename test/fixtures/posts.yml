@@ -1,13 +1,16 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  title: MyString
-  body: MyText
-  author: MyString
-  published_at: 2025-10-18 16:46:43
+  title: Admin's First Feature Post
+  body: This post is for testing admin-only operations (create, update, delete).
+  author: Admin
+  published_at: <%= Time.current.advance(days: -5) %>
+  user: admin
 
+# Post 'two' is linked to the 'regular_user' from users.yml.
 two:
-  title: MyString
-  body: MyText
-  author: MyString
-  published_at: 2025-10-18 16:46:43
+  title: Public Test Post
+  body: This post is used to ensure public viewing (index and show) works.
+  author: Guest Writer
+  published_at: <%= Time.current.advance(days: -10) %>
+  user: regular_user

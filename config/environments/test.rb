@@ -50,4 +50,21 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true
+
+  if defined?(ActiveRecord::ConnectionAdapters::PostgreSQLAdapter)
+    ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.prepend(Module.new do
+      def disable_referential_integrity
+        # Call the original method, ensuring the inner block is always executed
+        # to allow records to be deleted in any order.
+        super do
+          yield
+        end
+      rescue => e
+        # If the super call fails unexpectedly, fall back to yielding to
+        # allow the cleanup process to proceed.
+        Rails.logger.warn "Failed to use standard disable_referential_integrity: #{e.message}. Forcing yield."
+        yield
+      end
+    end)
+  end
 end

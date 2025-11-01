@@ -47,4 +47,13 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+
+  # Use brcypt for hashing passwords
+  gem "bcrypt", "~> 3.1.20"
+
+  # For JSON Web Token (JWT) management
+  gem "jwt"
+
+  # Local environment variables
+  gem "dotenv-rails"
 end
