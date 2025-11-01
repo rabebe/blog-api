@@ -26,7 +26,7 @@ class User < ApplicationRecord
             on: :create
 
   # --- Authorization logic ---
-  ADMIN_EMAIL = ENV.fetch("ADMIN_EMAIL")
+  ADMIN_EMAIL = ENV.fetch("ADMIN_EMAIL", "fallback@example.com").downcase
 
   def is_admin?
     self.email.casecmp?(ADMIN_EMAIL)
