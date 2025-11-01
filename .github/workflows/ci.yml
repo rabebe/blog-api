@@ -83,4 +83,6 @@ jobs:
           RAILS_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432
           # REDIS_URL: redis://localhost:6379/0
+          ADMIN_EMAIL: admin@test.dev
+          ADMIN_PASSWORD: pAssWord12345
         run: bin/rails db:test:prepare test
