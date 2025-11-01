@@ -2,10 +2,11 @@ require "test_helper"
 
 class PostAuthorizationTest < ActionDispatch::IntegrationTest
   # --- Setup: Create Admin User and a Post for testing ---
+
   def setup
     # Define safe credentials for testing in CI
-    admin_email = ENV.fetch("ADMIN_EMAIL", "test_admin@ci.dev")
-    admin_password = ENV.fetch("ADMIN_PASSWORD", "testpassword123")
+    @admin_email = ENV["ADMIN_EMAIL"].present? ? ENV["ADMIN_EMAIL"].to_s : "admin@test.dev"
+    @admin_password_text = ENV["ADMIN_PASSWORD"].present? ? ENV["ADMIN_PASSWORD"].to_s.strip : "pAssWord12345"
     # Clean slate
     User.delete_all
     Post.delete_all
@@ -15,8 +16,8 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
       username: "authoruser",
       email: @admin_email,
       password: @admin_password_text,
-      password_confirmation: admin_password,
-      is_admin: true # Assuming your User model has this attribute, essential for authorize_admin
+      password_confirmation: @admin_password_text,
+      is_admin: true
     )
 
     # Ensure the object in memory reflects the database state.
@@ -35,7 +36,7 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
   end
 
   def admin_auth_headers
-    post "/login", params: { email: @admin.email, password: @admin.password }, as: :json
+    post "/login", params: { email: @admin.email, password: @admin_password_text }, as: :json
     token = json_response["token"]
 
     # Return the headers hash expected by your ApplicationController
