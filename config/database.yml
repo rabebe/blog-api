@@ -78,9 +78,12 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 production:
-  primary: &primary_production
+  primary: &primary
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
+
+  queue:
+    <<: *primary
 
 cable:
   adapter: postgresql
