@@ -82,6 +82,9 @@ production:
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
 
+    queue:
+    <<: *primary
+
 cable:
   adapter: postgresql
   encoding: unicode
