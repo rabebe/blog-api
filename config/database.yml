@@ -84,6 +84,9 @@ production:
 
   queue:
     <<: *primary
+  
+  cache:
+    <<: *primary
 
 cable:
   adapter: postgresql
