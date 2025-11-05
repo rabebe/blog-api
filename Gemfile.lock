@@ -333,7 +333,7 @@ PLATFORMS
 DEPENDENCIES
   bcrypt (~> 3.1.20)
   bootsnap
-  brakeman
+  brakeman (~> 7.1.1)
   debug
   dotenv-rails
   jwt
