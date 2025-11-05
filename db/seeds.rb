@@ -1,30 +1,32 @@
 require 'time'
 
 # ==============================================================================
-# 1. Configuration and Idempotency
+# 1. Configuration and Idempotency Strategy
+# This file is SAFE to run multiple times without deleting existing data.
+# It uses find_or_create_by! to ensure records are only created if they don't exist.
 # ==============================================================================
 
 # Define Secure Admin Credentials (Fetching from ENV for production safety)
 admin_email = ENV.fetch("ADMIN_EMAIL", "admin@default.dev")
 admin_password = ENV.fetch("ADMIN_PASSWORD", "password123")
 
-# Ensure Idempotency: Clear existing posts and users
-puts "Clearing existing data and resetting database sequences to 1..."
-ActiveRecord::Base.connection.execute("TRUNCATE users RESTART IDENTITY CASCADE;")
-ActiveRecord::Base.connection.execute("TRUNCATE posts RESTART IDENTITY CASCADE;")
+puts "Starting production-safe seeding process..."
+
+# NO DESTRUCTIVE COMMANDS: The lines for TRUNCATE have been removed.
 
 # ==============================================================================
-# 2. Create the Admin User
+# 2. Find or Create the Admin User (Idempotent)
 # ==============================================================================
 
-puts "Creating Admin User: #{admin_email}"
-admin = User.create!(
-  email: admin_email,
-  password: admin_password,
-  password_confirmation: admin_password,
-  username: "Admin Author",
-  is_admin: true
-)
+puts "Finding or creating Admin User: #{admin_email}"
+
+# Use find_or_create_by! to check if a user with this email already exists
+admin = User.find_or_create_by!(email: admin_email) do |user|
+  user.password = admin_password
+  user.password_confirmation = admin_password
+  user.username = "Admin Author"
+  user.is_admin = true
+end
 puts "Admin User ID: #{admin.id}"
 
 
