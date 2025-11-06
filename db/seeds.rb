@@ -44,40 +44,40 @@ puts "Creating 3 detailed blog posts and linking them to the Admin User..."
 Post.create!(
   title: "Teaching My AI to Think Twice: What I Learned Building a Self-Correcting Summarization System",
   body: %Q(
-[cite_start]I recently built a self-correcting summarization workflow using **LangGraph** [cite: 96][cite_start], and it turned out to be one of those projects that teaches you as much about system design as it does about AI[cite: 96].
+I recently built a self-correcting summarization workflow using **LangGraph**, and it turned out to be one of those projects that teaches you as much about system design as it does about AI.
 
-[cite_start]The application implements an **iterative refinement loop** with three agents[cite: 98]:
-* [cite_start]A **Summarizer** that generates the initial draft[cite: 99].
-* [cite_start]A **Judge** that evaluates quality and provides feedback[cite: 100].
-* [cite_start]A **Refiner** that incorporates the critique[cite: 101].
+The application implements an **iterative refinement loop** with three agents:
+* A **Summarizer** that generates the initial draft.
+* A **Judge** that evaluates quality and provides feedback.
+* A **Refiner** that incorporates the critique.
 
-[cite_start]The loop continues until the Judge approves the output[cite: 102]. [cite_start]I deployed it using Flask and Render, so users can submit text and watch the refinement process happen in real-time[cite: 102].
+The loop continues until the Judge approves the output. I deployed it using Flask and Render, so users can submit text and watch the refinement process happen in real-time.
 
-# [cite_start]What Worked Well [cite: 103]
-[cite_start]The most satisfying part was seeing the **state machine** come together[cite: 104]. [cite_start]LangGraph's node-based architecture forces you to think explicitly about state transitions[cite: 105]. [cite_start]Each node produces output and determines the next step[cite: 105].
+# What Worked Well
+The most satisfying part was seeing the **state machine** come together. LangGraph's node-based architecture forces you to think explicitly about state transitions. Each node produces output and determines the next step.
 
-[cite_start]Using **Pydantic** for structured outputs made a huge difference[cite: 107]. [cite_start]By defining a schema with `should_refine: bool` and `feedback: str`, I turned the LLM from something unpredictable into a reliable component[cite: 107]. [cite_start]Type safety makes the whole system easier to reason about[cite: 108].
+Using **Pydantic** for structured outputs made a huge difference. By defining a schema with `should_refine: bool` and `feedback: str`, I turned the LLM from something unpredictable into a reliable component. Type safety makes the whole system easier to reason about.
 
-[cite_start]I also appreciated how LangGraph handles the orchestration layer[cite: 109]. [cite_start]You're not manually managing callbacks; you're just defining nodes and edges[cite: 110]. [cite_start]It keeps the code clean and lets you focus on the business logic[cite: 110].
+I also appreciated how LangGraph handles the orchestration layer. You're not manually managing callbacks; you're just defining nodes and edges. It keeps the code clean and lets you focus on the business logic.
 
-# [cite_start]The Hard Parts [cite: 111]
-[cite_start]**State management** was trickier than I expected[cite: 112]. [cite_start]Each node needs to explicitly return the keys you want to preserve [cite: 112][cite_start], and I initially had a node that was overwriting the entire state instead of merging updates[cite: 112]. [cite_start]The symptom was subtle: everything would work until the final node, which would fail with "summary not found"[cite: 113]. [cite_start]The lesson was clear: **implicit state updates don't work** in these architectures[cite: 115].
+# The Hard Parts
+**State management** was trickier than I expected. Each node needs to explicitly return the keys you want to preserve, and I initially had a node that was overwriting the entire state instead of merging updates. The symptom was subtle: everything would work until the final node, which would fail with "summary not found". The lesson was clear: **implicit state updates don't work** in these architectures.
 
-[cite_start]The other challenge was **enforcing structured output** from the LLM[cite: 116]. [cite_start]Even with clear prompts, the Judge would occasionally return extra commentary outside the JSON schema, breaking the parser[cite: 117]. [cite_start]I switched to **Gemini's `with_structured_output()` method** [cite: 118][cite_start], which validates at the API level and solved it completely[cite: 118, 119].
+The other challenge was **enforcing structured output** from the LLM. Even with clear prompts, the Judge would occasionally return extra commentary outside the JSON schema, breaking the parser. I switched to **Gemini's `with_structured_output()` method**, which validates at the API level and solved it completely.
 
-# [cite_start]What I Learned [cite: 120]
-* [cite_start]**Structured validation scales**[cite: 124]. [cite_start]Pydantic schemas might feel like overhead initially, but they pay dividends when you're debugging or extending the system[cite: 124, 125].
-* [cite_start]**State machines clarify control flow**[cite: 126]. [cite_start]LangGraph's explicit state management made debugging much easier[cite: 126]. [cite_start]When something broke, I could trace exactly where data was being lost or transformed incorrectly[cite: 127].
-* [cite_start]**Production reveals assumptions**[cite: 128]. [cite_start]Deploying to Render exposed timing issues, request timeouts, and serialization quirks that never showed up locally[cite: 121, 129].
-* [cite_start]**AI workflows are still software**[cite: 130]. [cite_start]The LLM is a component, but the real work is in validation, error handling, and system design[cite: 130].
+# What I Learned
+* **Structured validation scales**. Pydantic schemas might feel like overhead initially, but they pay dividends when you're debugging or extending the system.
+* **State machines clarify control flow**. LangGraph's explicit state management made debugging much easier. When something broke, I could trace exactly where data was being lost or transformed incorrectly.
+* **Production reveals assumptions**. Deploying to Render exposed timing issues, request timeouts, and serialization quirks that never showed up locally.
+* **AI workflows are still software**. The LLM is a component, but the real work is in validation, error handling, and system design.
 
-# [cite_start]Next Steps [cite: 132]
-[cite_start]Now that it's stable, I'm adding instrumentation to track performance[cite: 133]:
-* [cite_start]Logging disagreement rates between the Judge and Summarizer[cite: 134].
-* [cite_start]Recording refinement loop counts and feedback patterns[cite: 135].
-* [cite_start]Adding async support for batch processing[cite: 136].
+# Next Steps
+Now that it's stable, I'm adding instrumentation to track performance:
+* Logging disagreement rates between the Judge and Summarizer.
+* Recording refinement loop counts and feedback patterns.
+* Adding async support for batch processing.
 
-[cite_start]The broader takeaway is that iteration matters more than getting everything right the first time[cite: 137].
+The broader takeaway is that iteration matters more than getting everything right the first time.
   ),
   user_id: admin.id,
   published_at: 3.days.ago
@@ -87,36 +87,36 @@ Post.create!(
 Post.create!(
   title: "Building a Caching API Proxy for a Weather App",
   body: %Q(
-[cite_start]I recently built a weather app with a **caching proxy layer** [cite: 52][cite_start], and it turned into a practical lesson in full-stack system design[cite: 52]. [cite_start]The frontend is a straightforward React app, but adding a proxy between the client and the external weather API made me think harder about performance, cost, and data freshness[cite: 53].
+I recently built a weather app with a **caching proxy layer**, and it turned into a practical lesson in full-stack system design. The frontend is a straightforward React app, but adding a proxy between the client and the external weather API made me think harder about performance, cost, and data freshness.
 
-# [cite_start]Why a Proxy? [cite: 54]
-[cite_start]The problem was simple: external API calls are expensive and slow[cite: 55]. [cite_start]If multiple users request weather for the same city within a short window, there's no reason to hit the API repeatedly[cite: 56]. [cite_start]A caching proxy solves this by storing responses temporarily and serving cached data when possible[cite: 57]. [cite_start]Implementing it yourself forces you to understand the trade-offs involved[cite: 58].
+# Why a Proxy?
+The problem was simple: external API calls are expensive and slow. If multiple users request weather for the same city within a short window, there's no reason to hit the API repeatedly. A caching proxy solves this by storing responses temporarily and serving cached data when possible. Implementing it yourself forces you to understand the trade-offs involved.
 
-# [cite_start]What Worked Well [cite: 59]
-[cite_start]Designing the proxy as an **intelligent middleman** was the most interesting part[cite: 60]. [cite_start]Instead of just forwarding requests, it makes decisions about when to use cached data versus fetching fresh information[cite: 61]. [cite_start]This shifted my thinking from "call the API" to "**manage network efficiency and cost**"[cite: 62].
+# What Worked Well
+Designing the proxy as an **intelligent middleman** was the most interesting part. Instead of just forwarding requests, it makes decisions about when to use cached data versus fetching fresh information. This shifted my thinking from "call the API" to "**manage network efficiency and cost**".
 
-[cite_start]The **cache hit path** was satisfying to implement[cite: 63]. [cite_start]Response times dropped to milliseconds for cached requests, and the backend only called the external API when necessary[cite: 63].
+The **cache hit path** was satisfying to implement. Response times dropped to milliseconds for cached requests, and the backend only called the external API when necessary.
 
-[cite_start]I also appreciated how the proxy naturally functions as a **rate limiter**[cite: 65]. [cite_start]If ten users request "London" simultaneously, only one external API call happens within the TTL window[cite: 66]. [cite_start]That kind of implicit optimization emerged from the design[cite: 67].
+I also appreciated how the proxy naturally functions as a **rate limiter**. If ten users request "London" simultaneously, only one external API call happens within the TTL window. That kind of implicit optimization emerged from the design.
 
-# [cite_start]The Challenges [cite: 68]
-* [cite_start]**Cache invalidation and TTL selection**[cite: 69]. [cite_start]I settled on a **5-minute TTL** for weather data, as temperature changes aren't urgent enough to justify constant refreshing[cite: 69, 70]. [cite_start]This forced me to think through the trade-offs: shorter TTLs mean fresher data but higher API costs[cite: 70].
-* [cite_start]**Sequencing cache operations correctly**[cite: 73]. [cite_start]The logic is: check cache, fetch from API if stale, update cache, respond[cite: 73]. [cite_start]Small mistakes in ordering could block the frontend or return inconsistent data[cite: 73]. [cite_start]I had to think carefully about error handling, too—each layer needs to degrade gracefully[cite: 75].
-* [cite_start]**Handling the cold start problem**[cite: 76]. [cite_start]On the first request for any city, the cache is empty, and there's unavoidable latency[cite: 76]. [cite_start]The lesson was recognizing where complexity (like prefetching) adds value versus where it's premature optimization[cite: 77, 78].
+# The Challenges
+* **Cache invalidation and TTL selection**. I settled on a **5-minute TTL** for weather data, as temperature changes aren't urgent enough to justify constant refreshing. This forced me to think through the trade-offs: shorter TTLs mean fresher data but higher API costs.
+* **Sequencing cache operations correctly**. The logic is: check cache, fetch from API if stale, update cache, respond. Small mistakes in ordering could block the frontend or return inconsistent data. I had to think carefully about error handling, too—each layer needs to degrade gracefully.
+* **Handling the cold start problem**. On the first request for any city, the cache is empty, and there's unavoidable latency. The lesson was recognizing where complexity (like prefetching) adds value versus where it's premature optimization.
 
-# [cite_start]What I Learned [cite: 79]
-* [cite_start]**System design is about constraints**[cite: 80]. [cite_start]I had to balance frontend expectations, backend efficiency, and external API limitations[cite: 80].
-* [cite_start]**Simplicity usually wins**[cite: 82]. [cite_start]A fixed TTL was simpler, reliable, and appropriate for the problem[cite: 82]. [cite_start]Knowing when not to add complexity is as important as knowing when to add it[cite: 83].
-* [cite_start]**Debugging requires understanding layers**[cite: 84]. [cite_start]When something broke, I had to trace the path through the frontend, proxy logic, cache read/write, and external API call[cite: 84].
-* [cite_start]**Instrumentation matters**[cite: 86]. [cite_start]I added logging for cache hits, misses, and API calls [cite: 86][cite_start], which was essential for understanding actual versus intended behaviour[cite: 86].
+# What I Learned
+* **System design is about constraints**. I had to balance frontend expectations, backend efficiency, and external API limitations.
+* **Simplicity usually wins**. A fixed TTL was simpler, reliable, and appropriate for the problem. Knowing when not to add complexity is as important as knowing when to add it.
+* **Debugging requires understanding layers**. When something broke, I had to trace the path through the frontend, proxy logic, cache read/write, and external API call.
+* **Instrumentation matters**. I added logging for cache hits, misses, and API calls, which was essential for understanding actual versus intended behaviour.
 
-# [cite_start]Next Steps [cite: 88]
-[cite_start]The proxy works well, but there are a few improvements I want to explore[cite: 89]:
-* [cite_start]**Configurable TTL per city**: Some locations might benefit from more frequent updates[cite: 90].
-* [cite_start]**Cache prefetching**: Proactively fetch popular cities to reduce first-request latency[cite: 91].
-* [cite_start]**Better monitoring**: Track cache hit rates and API costs over time to validate the design assumptions[cite: 92].
+# Next Steps
+The proxy works well, but there are a few improvements I want to explore:
+* **Configurable TTL per city**: Some locations might benefit from more frequent updates.
+* **Cache prefetching**: Proactively fetch popular cities to reduce first-request latency.
+* **Better monitoring**: Track cache hit rates and API costs over time to validate the design assumptions.
 
-[cite_start]Building this project reinforced that even small applications benefit from thinking about concurrency, caching, and cost[cite: 93].
+Building this project reinforced that even small applications benefit from thinking about concurrency, caching, and cost.
   ),
   user_id: admin.id,
   published_at: 2.days.ago
