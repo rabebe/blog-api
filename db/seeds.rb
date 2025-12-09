@@ -1,30 +1,32 @@
 require 'time'
 
 # ==============================================================================
-# 1. Configuration and Idempotency
+# 1. Configuration and Idempotency Strategy
+# This file is SAFE to run multiple times without deleting existing data.
+# It uses find_or_create_by! to ensure records are only created if they don't exist.
 # ==============================================================================
 
 # Define Secure Admin Credentials (Fetching from ENV for production safety)
 admin_email = ENV.fetch("ADMIN_EMAIL", "admin@default.dev")
 admin_password = ENV.fetch("ADMIN_PASSWORD", "password123")
 
-# Ensure Idempotency: Clear existing posts and users
-puts "Clearing existing data and resetting database sequences to 1..."
-ActiveRecord::Base.connection.execute("TRUNCATE users RESTART IDENTITY CASCADE;")
-ActiveRecord::Base.connection.execute("TRUNCATE posts RESTART IDENTITY CASCADE;")
+puts "Starting production-safe seeding process..."
+
+# NO DESTRUCTIVE COMMANDS: The lines for TRUNCATE have been removed.
 
 # ==============================================================================
-# 2. Create the Admin User
+# 2. Find or Create the Admin User (Idempotent)
 # ==============================================================================
 
-puts "Creating Admin User: #{admin_email}"
-admin = User.create!(
-  email: admin_email,
-  password: admin_password,
-  password_confirmation: admin_password,
-  username: "Admin Author",
-  is_admin: true
-)
+puts "Finding or creating Admin User: #{admin_email}"
+
+# Use find_or_create_by! to check if a user with this email already exists
+admin = User.find_or_create_by!(email: admin_email) do |user|
+  user.password = admin_password
+  user.password_confirmation = admin_password
+  user.username = "Admin Author"
+  user.is_admin = true
+end
 puts "Admin User ID: #{admin.id}"
 
 
@@ -42,181 +44,120 @@ puts "Creating 3 detailed blog posts and linking them to the Admin User..."
 Post.create!(
   title: "Teaching My AI to Think Twice: What I Learned Building a Self-Correcting Summarization System",
   body: %Q(
-When I started building my self-correcting summarization workflow, I thought I was just making a better summarizer. What I ended up building was a system that constantly challenges itself — and in the process, taught me a lot about my own approach to engineering.
+I recently built a self-correcting summarization workflow using **LangGraph**, and it turned out to be one of those projects that teaches you as much about system design as it does about AI.
 
-The project uses LangGraph to create a looping workflow where a **Summarizer** writes a draft, a **Judge** critiques it, and a **Refiner** revises it. It keeps going until the Judge approves the final summary. I deployed the app using Flask and Render, so anyone can send in text and watch the AI go through its iterative process.
+The application implements an **iterative refinement loop** with three agents:
+* A **Summarizer** that generates the initial draft.
+* A **Judge** that evaluates quality and provides feedback.
+* A **Refiner** that incorporates the critique.
 
-Here’s what stood out to me from the experience.
+The loop continues until the Judge approves the output. I deployed it using Flask and Render, so users can submit text and watch the refinement process happen in real-time.
 
-#What I Enjoyed: Building Systems That Think Like People
+# What Worked Well
+The most satisfying part was seeing the **state machine** come together. LangGraph's node-based architecture forces you to think explicitly about state transitions. Each node produces output and determines the next step.
 
-What I enjoyed most was designing something that feels alive. The first time I watched the agents run in sequence — writing, critiquing, refining — I realized I wasn’t just chaining API calls; I was orchestrating behavior.
+Using **Pydantic** for structured outputs made a huge difference. By defining a schema with `should_refine: bool` and `feedback: str`, I turned the LLM from something unpredictable into a reliable component. Type safety makes the whole system easier to reason about.
 
-I liked how LangGraph forces you to think in terms of **state transitions**. Each node is responsible for producing a piece of state and deciding what comes next. It’s not unlike building a small operating system — there’s logic, memory, and control flow.
+I also appreciated how LangGraph handles the orchestration layer. You're not manually managing callbacks; you're just defining nodes and edges. It keeps the code clean and lets you focus on the business logic.
 
-I also really enjoyed working with **Pydantic** to enforce structure in the agents’ outputs. Having the model return a typed `JudgeResult` with `should_refine: bool` and `feedback: str` made everything predictable. It turned the LLM from a black box into something closer to a reliable collaborator.
+# The Hard Parts
+**State management** was trickier than I expected. Each node needs to explicitly return the keys you want to preserve, and I initially had a node that was overwriting the entire state instead of merging updates. The symptom was subtle: everything would work until the final node, which would fail with "summary not found". The lesson was clear: **implicit state updates don't work** in these architectures.
 
-There’s something satisfying about that — not just calling an API, but designing an interface between humans, models, and machines.
+The other challenge was **enforcing structured output** from the LLM. Even with clear prompts, the Judge would occasionally return extra commentary outside the JSON schema, breaking the parser. I switched to **Gemini's `with_structured_output()` method**, which validates at the API level and solved it completely.
 
-#What I Struggled With: Keeping State and Structure Aligned
+# What I Learned
+* **Structured validation scales**. Pydantic schemas might feel like overhead initially, but they pay dividends when you're debugging or extending the system.
+* **State machines clarify control flow**. LangGraph's explicit state management made debugging much easier. When something broke, I could trace exactly where data was being lost or transformed incorrectly.
+* **Production reveals assumptions**. Deploying to Render exposed timing issues, request timeouts, and serialization quirks that never showed up locally.
+* **AI workflows are still software**. The LLM is a component, but the real work is in validation, error handling, and system design.
 
-My biggest struggle was managing state across the workflow. In LangGraph, each node must explicitly return the keys you want to keep. I initially lost data because one of my nodes **overwrote the shared state** instead of extending it. The result? My final node would output "summary not found", even though everything had worked moments before.
+# Next Steps
+Now that it's stable, I'm adding instrumentation to track performance:
+* Logging disagreement rates between the Judge and Summarizer.
+* Recording refinement loop counts and feedback patterns.
+* Adding async support for batch processing.
 
-It was a painful but valuable reminder: data doesn’t persist magically just because your logic feels correct. Every part of the system needs to deliberately hand off its results to the next.
-
-The other tough part was getting consistent structured output from the LLM. Sometimes the Judge agent would return feedback outside the expected JSON format. That single line of extra text caused my parser to fail. It felt like debugging a conversation — you know what the model means, but you can’t let it get sloppy.
-
-The fix was using **Gemini’s structured output mode**: `model.with_structured_output(JudgeResult)`. That enforced schema validation at the API level, turning the flaky parts of the pipeline into something solid.
-
-#Lessons Learned: From Code That Runs to Code That Lasts
-
-After finally deploying the system on Render, I realized that working code and production-ready code are not the same thing.
-
-Here are the takeaways I’ll carry forward:
-
-1. **Structured Validation Is Not Optional**
-Pydantic saved me more times than I can count. Without explicit schemas, I would’ve spent days chasing down format errors. Structure doesn’t slow you down; it gives you room to scale.
-
-2. **State Machines Are a Great Way to Think**
-LangGraph made me appreciate the power of explicit state. When bugs appeared, I could literally visualize where data was being dropped. That mental model — inputs, transformations, outputs — now shapes how I design all asynchronous workflows.
-
-3. **Deployment Forces Clarity**
-Deploying to Render exposed timing issues, missing environment variables, and serialization bugs that never showed up locally. It was humbling — and exactly what I needed to understand how “the real world” breaks code.
-
-4. **AI Projects Still Require Real Engineering**
-AI workflows look flashy, but most of the hard work isn’t in the prompt — it’s in ensuring reliability, handling errors, validating output, and designing clean interfaces. It’s a full-stack problem, not just a model problem.
-
-#Where I’m Headed Next
-
-Now that it’s live, I want to keep pushing the “self-correcting” idea further. I’m experimenting with:
-* Tracking how often the Judge disagrees with the Summarizer.
-* Logging refinement loops to evaluate performance over time.
-* Adding async task handling for larger document batches.
-
-Ultimately, what I’m really exploring is how systems — and developers — can learn from their own mistakes. This project made me realize that AI agents, like engineers, improve not through perfection, but through iteration. And if I can keep that mindset in my work, I’ll be learning the right way.
+The broader takeaway is that iteration matters more than getting everything right the first time.
   ),
   user_id: admin.id,
-  published_at: Time.current
+  published_at: 3.days.ago
 )
 
 # --- POST 2: Caching API Proxy ---
 Post.create!(
-  title: "Learning to Build a Faster Weather App: My Full-Stack Caching API Proxy Journey",
+  title: "Building a Caching API Proxy for a Weather App",
   body: %Q(
-When I built my “Caching Weather Client,” I wanted a simple React app that shows the current weather for any city. Sounds easy, right? But as soon as I started thinking about real users, I realized: API calls cost money, and repeated requests are slow.
+I recently built a weather app with a **caching proxy layer**, and it turned into a practical lesson in full-stack system design. The frontend is a straightforward React app, but adding a proxy between the client and the external weather API made me think harder about performance, cost, and data freshness.
 
-That’s when I decided to add a **caching proxy** between the frontend and the weather API. What I learned wasn’t just about caching — it was about designing a full-stack system that balances performance, reliability, and cost.
+# Why a Proxy?
+The problem was simple: external API calls are expensive and slow. If multiple users request weather for the same city within a short window, there's no reason to hit the API repeatedly. A caching proxy solves this by storing responses temporarily and serving cached data when possible. Implementing it yourself forces you to understand the trade-offs involved.
 
-#What I Enjoyed
+# What Worked Well
+Designing the proxy as an **intelligent middleman** was the most interesting part. Instead of just forwarding requests, it makes decisions about when to use cached data versus fetching fresh information. This shifted my thinking from "call the API" to "**manage network efficiency and cost**".
 
-I loved designing the proxy as an **intelligent middleman**. Suddenly, I wasn’t just calling an API — I was thinking about network efficiency, data freshness, and cost management.
+The **cache hit path** was satisfying to implement. Response times dropped to milliseconds for cached requests, and the backend only called the external API when necessary.
 
-It felt like I was stepping into a real engineering problem:
-* How do you reduce redundant API calls?
-* How do you make the system fast for repeat requests?
-* How do you keep the code simple without overengineering?
+I also appreciated how the proxy naturally functions as a **rate limiter**. If ten users request "London" simultaneously, only one external API call happens within the TTL window. That kind of implicit optimization emerged from the design.
 
-Implementing the cache hit path was satisfying because the response time dropped to milliseconds. Watching the frontend get instant updates while the backend only called the expensive API occasionally felt like magic.
+# The Challenges
+* **Cache invalidation and TTL selection**. I settled on a **5-minute TTL** for weather data, as temperature changes aren't urgent enough to justify constant refreshing. This forced me to think through the trade-offs: shorter TTLs mean fresher data but higher API costs.
+* **Sequencing cache operations correctly**. The logic is: check cache, fetch from API if stale, update cache, respond. Small mistakes in ordering could block the frontend or return inconsistent data. I had to think carefully about error handling, too—each layer needs to degrade gracefully.
+* **Handling the cold start problem**. On the first request for any city, the cache is empty, and there's unavoidable latency. The lesson was recognizing where complexity (like prefetching) adds value versus where it's premature optimization.
 
-#What I Struggled With
+# What I Learned
+* **System design is about constraints**. I had to balance frontend expectations, backend efficiency, and external API limitations.
+* **Simplicity usually wins**. A fixed TTL was simpler, reliable, and appropriate for the problem. Knowing when not to add complexity is as important as knowing when to add it.
+* **Debugging requires understanding layers**. When something broke, I had to trace the path through the frontend, proxy logic, cache read/write, and external API call.
+* **Instrumentation matters**. I added logging for cache hits, misses, and API calls, which was essential for understanding actual versus intended behaviour.
 
-There were a few tricky parts that taught me more than I expected:
+# Next Steps
+The proxy works well, but there are a few improvements I want to explore:
+* **Configurable TTL per city**: Some locations might benefit from more frequent updates.
+* **Cache prefetching**: Proactively fetch popular cities to reduce first-request latency.
+* **Better monitoring**: Track cache hit rates and API costs over time to validate the design assumptions.
 
-1. **Cache Invalidation and TTL**
-I had to decide how stale data could be before fetching new info. I picked 5 minutes, which works fine for weather — it’s not life-critical if the temperature is a few minutes old.
-
-But deciding on the right TTL made me realize there’s always a trade-off: shorter TTLs mean fresher data but more API calls and higher cost; longer TTLs save money but risk staleness. I spent a lot of time thinking through that balance.
-
-2. **Handling Cache Misses**
-On the first request for a city, the cache is empty. My first version just fetched the API, but I hadn’t considered latency for users. I learned to sequence operations carefully: check cache → fetch from API if stale → update cache → respond. It seems simple, but small mistakes here could block the frontend or return inconsistent data.
-
-3. **Rate-Limiting by Design**
-I realized that the proxy could also act as a rate limiter. Even if 10 users request “London” simultaneously, only one external API call is made in the TTL window. That was a subtle but important lesson in efficiency and cost control.
-
-#Lessons Learned
-
-* **Designing for scale early matters**
-    Even a small app needs to think about concurrency, caching, and API limits. These design choices pay off as the app grows.
-
-* **Simplicity wins**
-    I briefly considered complex strategies like webhooks to invalidate cache, but a fixed TTL was simpler, reliable, and “good enough” for the use case.
-
-* **Full-stack thinking is fun and hard**
-    Balancing frontend expectations, backend logic, and external API constraints forced me to consider the system as a whole, not just individual layers.
-
-* **Debugging in layers**
-    If something broke, I had to check frontend request → proxy logic → cache read/write → external API. Understanding each layer helped me improve troubleshooting skills.
-
-#Where I’m Going Next
-
-The proxy works, but I want to explore a few improvements:
-* Configurable TTL per city: Some users care more about real-time data.
-* Cache prefetching: Fetch popular cities in advance to reduce first-request latency.
-* Better logging: Track cache hits, misses, and API costs in production.
-
-Building this small project gave me confidence that I can design full-stack solutions that are efficient and maintainable, even when I’m still early in my career.
+Building this project reinforced that even small applications benefit from thinking about concurrency, caching, and cost.
   ),
   user_id: admin.id,
-  published_at: 1.day.ago
+  published_at: 2.days.ago
 )
 
 # --- POST 3: Rails to Next.js Blog ---
 Post.create!(
-  title: "From Rails to Next.js: Lessons Learned Building My Personal Blog",
+  title: "Building a Personal Blog with Rails and Next.js",
   body: %Q(
-When I decided to build my personal blog, I wanted fast pages, structured content, and a decoupled architecture. I also wanted to challenge myself to combine what I was learning in Rails with a modern frontend framework like Next.js.
+I recently built my personal blog using **Rails as a headless CMS** and **Next.js** for the frontend. The setup is straightforward: Rails handles content through a JSON API, and Next.js generates static pages from that data. I chose this architecture partly to learn how these systems work together, but also because it keeps things cleanly separated. Rails worries about content and data; Next.js handles the rendering and performance side of things.
 
-What I ended up building was more than just a blog. It was a crash course in full-stack integration, static site generation, and type safety, and it taught me lessons I’m still carrying forward as I grow as a developer.
+# What Worked Well
+The big win was **static site generation**. Next.js pre-renders all the blog pages at build time, so the HTML is already there when you visit a post. It's noticeably faster than waiting for API calls or client-side rendering, making a huge difference in how snappy things feel for a blog. I'd rather have fast page loads than real-time updates for content that changes maybe once a week.
 
-#What I Enjoyed
+Using **TypeScript** for the frontend helped more than I expected. I defined interfaces for what the API should return, and it caught a bunch of places where the Rails JSON didn't quite match what Next.js was expecting. While not perfect, it prevents a lot of stupid mistakes.
 
-* **Static Generation (SSG)**
-    I loved seeing how Next.js pre-builds every blog page at build time. Visiting a post feels instant because the HTML is already generated. As someone still learning Rails, it was exciting to see how pre-rendering improves performance for readers without adding complexity to the frontend.
+I also appreciated being forced to think **API-first**. Instead of having Rails render HTML directly, everything goes through JSON endpoints. This made me more deliberate about what data the backend should provide and how it's structured. This fosters good habits for working on any separated frontend/backend project.
 
-* **Type Safety with TypeScript**
-    Using TypeScript on the frontend, I created interfaces for posts and API responses. It helped me catch mismatches between Rails JSON output and the Next.js components before they became runtime bugs. I really appreciated how this gives confidence when refactoring or adding features.
+# The Tricky Parts
+**Static generation is great until you realize your content is stale**. I'd add a new post to Rails, check the site, and find nothing. It took me a minute to remember I needed to rebuild. Eventually, I set up **Incremental Static Regeneration** (ISR) so pages refresh on demand, but understanding why the content wasn't updating was the first step.
 
-* **Decoupled Architecture**
-    Having Rails serve data and Next.js render it forced me to think in API-first terms. Even though I’m still learning Rails, this made me realize how important it is to clearly define what the backend should provide, and how the frontend consumes it.
+**Keeping the API contract in sync** between Rails and Next.js was harder than it should have been. I'd change a field name in Rails, forget to update the TypeScript interface, and boom, broken frontend. It taught me to treat the API like an actual contract that both sides need to respect.
 
-#What I Struggled With
+Next.js **routing with `generateStaticParams`** worked fine once I got it, but the learning curve was steeper than I expected. The slug format in Rails had to match exactly what Next.js expected in the URL. When they didn't match, I'd get confusing 404 errors that took longer to debug than they should have.
 
-1. **Keeping Content Fresh with Static Pages**
-Static generation is fast, but it introduces stale content. When I added a new post to Rails, the Next.js page wouldn’t update until I rebuilt the site. I realized I’d need **Incremental Static Regeneration (ISR)** or a webhook from Rails to trigger rebuilds — a small but important piece to make a production-ready system.
+# What I Learned
+* **API design** ended up mattering more than I thought it would. Consistent field names, proper error codes, and clear data shapes make the frontend way easier to work with.
+* **Static generation is powerful, but you need a plan for how content updates**. ISR worked for me, but webhooks or scheduled rebuilds could work too. Thinking about your update frequency upfront is crucial.
+* **TypeScript reduces a lot of friction once you commit to it**. Combined with a well-designed backend API, it cuts down the feedback loop for catching errors before they hit production.
+* **Decoupled systems force you to think about boundaries more carefully**. The separation means Rails doesn't need to know about frontend rendering, and Next.js doesn't care about the database structure, making both sides easier to reason about.
 
-2. **Managing API Contracts**
-Even with TypeScript, I had to be careful that Rails output matched the interfaces expected by Next.js. It was easy to accidentally change a key name or data structure in Rails, which would break the frontend. This taught me the importance of **contract discipline** between frontend and backend — a lesson I’m still practicing as I grow more comfortable with Rails.
+# Next Steps
+I'm working on a few improvements:
+* **On-demand revalidation**: Automatically update pages when new content is published, without needing a full rebuild.
+* **Search functionality**: Add filtering and search to the blog index. I'll probably go with a client-side solution to keep things simple.
+* **SEO improvements**: Better metadata, structured data, and Open Graph tags for discoverability.
 
-3. **Routing Nuances in Next.js**
-Dynamic routes with `generateStaticParams` worked well for my blog posts, but understanding how params relate to SSG took some trial and error. I had to make sure the slug used in Rails matched the URL paths in Next.js exactly — a subtle detail that caused confusing 404 errors at first.
-
-#Lessons Learned
-
-* **Think API-first, even when learning backend frameworks**
-    Designing Rails to serve JSON first made integration smoother and taught me good practices early on.
-
-* **Static generation improves UX, but you need a plan for updates**
-    It’s fast, but content doesn’t refresh automatically. ISR or webhooks are essential for blogs or apps with frequently updated content.
-
-* **TypeScript + Rails = sanity**
-    Strong typing on the frontend prevents small but frustrating bugs, even when the backend is still a learning project.
-
-* **Decoupled architecture teaches discipline**
-    Separating frontend and backend logic forces you to clearly define responsibilities, improving maintainability — an important habit for any developer, especially when you’re learning.
-
-#Next Steps
-
-I’m planning to add:
-* On-demand revalidation so new posts update automatically without a rebuild.
-* Search and filtering on the blog index.
-* Enhanced layouts and SEO optimizations.
-
-This project wasn’t just about making a blog — it was about exploring how frontend and backend systems can work together and how to think about the full stack as a junior developer.
-
-By the end, I felt more confident in designing robust, maintainable systems, and more aware of the subtle challenges that arise even in seemingly simple projects.
+This project reinforced that even simple applications involve real design decisions around performance, data freshness, and system boundaries.
   ),
   user_id: admin.id,
-  published_at: 2.days.ago
+  published_at: 1.day.ago
 )
 
 puts "Seeding complete. Created #{User.count} user(s) and #{Post.count} post(s)."
