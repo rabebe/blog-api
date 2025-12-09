@@ -8,7 +8,6 @@ require "action_mailer/railtie"
 require "active_storage/engine"
 require "action_text/engine"
 require "rails/test_unit/railtie"
-require "sprockets/railtie"
 
 # Require the gems listed in Gemfile
 Bundler.require(*Rails.groups)
