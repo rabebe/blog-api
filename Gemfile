@@ -56,4 +56,7 @@ group :development, :test do
 
   # Local environment variables
   gem "dotenv-rails"
+
+  # RSpec for testing
+  gem "rspec-rails", "~> 7.0.0"
 end
