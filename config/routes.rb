@@ -1,19 +1,30 @@
+# config/routes.rb
 Rails.application.routes.draw do
   # --- Authentication routes ---
-  # Login route
   post "login", to: "sessions#create"
-
-  # Logout route
+  post "signup", to: "users#create"
   delete "logout", to: "sessions#destroy"
 
+  # Posts, comments, likes, admin routes
+  resources :posts do
+    resources :comments, only: [ :create ]
+    post "like", to: "likes#create"
+    delete "like", to: "likes#destroy"
+  end
 
-  resources :posts
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
+  # --- Admin namespace ---
+  namespace :admin do
+    resources :comments, only: [ :index ] do
+      member do
+        patch  :approve
+        delete :reject
+      end
+    end
+  end
 
-  # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
+  # Health check
+  get "up", to: "rails/health#show", as: :rails_health_check
 
-  get "up" => "rails/health#show", as: :rails_health_check
-
-  # Defines the root path route ("/")
+  # Root path
   root "posts#index"
 end

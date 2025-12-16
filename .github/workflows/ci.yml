@@ -34,7 +34,7 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: Lint code for consistent style
+      - name: Run RuboCop linter
         run: bin/rubocop -f github
 
   test:
@@ -50,11 +50,11 @@ jobs:
           - 5432:5432
         options: --health-cmd="pg_isready" --health-interval=10s --health-timeout=5s --health-retries=3
 
-      # redis:
-      #   image: redis
-      #   ports:
-      #     - 6379:6379
-      #   options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
       - name: Install packages
@@ -78,11 +78,17 @@ jobs:
           bin/rails db:create
           bin/rails db:schema:load
 
-      - name: Run tests
+      - name: Run Minitest
         env:
           RAILS_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432
-          # REDIS_URL: redis://localhost:6379/0
+          REDIS_URL: redis://localhost:6379/0
           ADMIN_EMAIL: admin@test.dev
           ADMIN_PASSWORD: pAssWord12345
         run: bin/rails db:test:prepare test
+      
+      - name: Run RSpec
+        env:
+          RAILS_ENV: test
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432
+        run: bundle exec rspec

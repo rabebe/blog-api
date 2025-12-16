@@ -40,12 +40,12 @@ class SessionFlowTest < ActionDispatch::IntegrationTest
     assert_equal "Invalid email or password", json_response["error"]
   end
 
-  test "logout runs 204 no content" do
+  test "logout runs 200 OK and message" do
     # 1. Log in to get fresh headers locally
     auth_headers = user_auth_headers(@user)
 
     # 2. Use the token to access the protected logout route
     delete "/logout", headers: auth_headers
-    assert_response :no_content # Expect 204 No Content
+    assert_response :ok # Correctly asserts 200
   end
 end

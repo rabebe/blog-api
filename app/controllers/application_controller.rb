@@ -1,10 +1,8 @@
 class ApplicationController < ActionController::API
-  include JsonWebToken
-
   before_action :authenticate_request
 
   def authorize_admin
-    unless current_user&.is_admin?
+    unless current_user&.admin?
       render json: { error: "Forbidden. Admin privileges required" }, status: :forbidden
     end
   end
@@ -16,32 +14,29 @@ class ApplicationController < ActionController::API
 
   private
 
-  # Authenticates the request by verifying the JWT token.
+  # Authenticate the request using JWT token
   def authenticate_request
-    auth_header = request.headers["Authorization"]
-    token = nil
+    # Extract token from Authorization header
+    token = request.headers["Authorization"]&.split(" ")&.last
+    Rails.logger.warn "SECRET KEY BASE: #{Rails.application.secret_key_base}"
+    Rails.logger.debug "TOKEN RECEIVED: #{token.inspect}"
 
-    if auth_header.present? && auth_header.start_with?("Bearer ")
-      token = auth_header.split(" ").last
-    end
+    return render json: { error: "Forbidden. Authentication required" }, status: :forbidden unless token
 
-    if token.present?
-      begin
-        @decoded = JsonWebToken.decode(token)
+    begin
+      @decoded = JsonWebToken.decode(token) # returns HashWithIndifferentAccess
+      Rails.logger.debug "DECODED TOKEN: #{@decoded.inspect}"
 
-        unless @decoded.present?
-          return render json: { error: "Invalid token format or expired" }, status: :unauthorized
-        end
-
-        @current_user = User.find(@decoded[:user_id])
-
-      rescue ActiveRecord::RecordNotFound
-        render json: { error: "Invalid token: User not found" }, status: :unauthorized
-      rescue JWT::DecodeError => e
-        render json: { error: "Invalid token: #{e.message}" }, status: :unauthorized
+      unless @decoded.present?
+        return render json: { error: "Invalid token format or expired" }, status: :unauthorized
       end
-    else
-      render json: { error: "Forbidden. Authentication required" }, status: :forbidden
+
+      @current_user = User.find(@decoded[:user_id])
+
+    rescue ActiveRecord::RecordNotFound
+      render json: { error: "Invalid token: User not found" }, status: :unauthorized
+    rescue JWT::DecodeError => e
+      render json: { error: "Invalid token: #{e.message}" }, status: :unauthorized
     end
   end
 end
