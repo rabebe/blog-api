@@ -58,5 +58,5 @@ group :development, :test do
   gem "dotenv-rails"
 
   # RSpec for testing
-  gem "rspec-rails", "~> 7.0.0"
+  gem "rspec-rails"
 end
