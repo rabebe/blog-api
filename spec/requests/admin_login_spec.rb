@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe "Admin login", type: :request do
-  let(:admin) { User.create!(username: "adminuser", email: "admin@test.dev", password: "pAssWord12345", is_admin: true) }
+  let(:admin) { User.create!(username: "adminuser", email: "admin@test.dev", password: "pAssWord12345", role: 1) }
 
   it "allows valid admin to login" do
     post "/login", params: { email: admin.email, password: "pAssWord12345" }
