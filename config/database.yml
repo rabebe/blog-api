@@ -56,8 +56,7 @@ development:
 test:
   <<: *default
   database: blog_api_test
-  username: postgres
-  password: postgres
+  username: ruthabebe
   host: localhost
 
 

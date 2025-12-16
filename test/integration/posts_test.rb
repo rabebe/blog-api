@@ -19,7 +19,7 @@ class PostAuthorizationTest < ActionDispatch::IntegrationTest
       email: @admin_email,
       password: @admin_password_text,
       password_confirmation: @admin_password_text,
-      is_admin: true
+      role: 1
     )
 
     # Ensure the object in memory reflects the database state.
