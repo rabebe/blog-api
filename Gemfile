@@ -38,7 +38,7 @@ gem "rack-cors"
 gem "jwt"
 
 # Use brcypt for hashing passwords
-gem "bcrypt", "~> 3.1.20"
+gem "bcrypt", "~> 3.1.21"
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
