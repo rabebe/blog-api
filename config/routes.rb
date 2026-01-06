@@ -7,7 +7,7 @@ Rails.application.routes.draw do
 
   # Posts, comments, likes, admin routes
   resources :posts do
-    resources :comments, only: [ :create ]
+    resources :comments, only: [ :index, :create, :destroy ]
     post "like", to: "likes#create"
     delete "like", to: "likes#destroy"
   end
