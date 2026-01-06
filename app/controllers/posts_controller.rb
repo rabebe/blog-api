@@ -16,7 +16,8 @@ class PostsController < ApplicationController
 
   # GET /posts/id
   def show
-    render json: @post
+    is_liked = @current_user ? @post.likes.exists?(user: @current_user) : false
+    render json: @post.as_json(methods: :likes_count).merge(user_liked: is_liked)
   end
 
   # GET /posts/search?q=keyword
@@ -31,12 +32,11 @@ class PostsController < ApplicationController
 
   # POST /posts
   def create
-    @post = Post.new(post_params)
+    @post = current_user.posts.build(post_params)
     if @post.save
       render json: @post, status: :created
     else
-      render json: @post.errors, status: :unprocessable_entity
-    end
+    render json: { errors: @post.errors.full_messages }, status: :unprocessable_entity    end
   end
 
   # PATCH/PUT /posts/:id
@@ -61,7 +61,7 @@ class PostsController < ApplicationController
   end
 
   def post_params
-    params.require(:post).permit(:title, :body, :user_id, keywords: [])
+    params.require(:post).permit(:title, :body, keywords: [])
   end
 
   def authorize_admin
