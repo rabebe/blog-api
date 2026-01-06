@@ -26,4 +26,8 @@ class Comment < ApplicationRecord
   def reject!
     update!(status: 2)
   end
+
+  scope :pending, -> { where(status: 0) }
+  scope :approved, -> { where(status: 1) }
+  scope :rejected, -> { where(status: 2) }
 end
