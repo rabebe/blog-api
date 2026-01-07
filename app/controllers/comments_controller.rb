@@ -1,7 +1,16 @@
 class CommentsController < ApplicationController
-  before_action :authenticate_request
-  before_action :set_post, only: [ :create ]
+  skip_before_action :authenticate_request, only: [ :index ]
+
+  before_action :authenticate_request, only: [ :create, :destroy ]
+  before_action :set_post, only: [ :index, :create, :destroy ]
   before_action :set_comment, only: [ :destroy ]
+
+
+  # GET /posts/:post_id/comments
+  def index
+    @comments = @post.comments.where(status: 1).order(created_at: :desc)
+    render json: @comments.as_json(include: { user: { only: :name } })
+  end
 
   # POST /posts/:post_id/comments
   def create
@@ -22,7 +31,7 @@ class CommentsController < ApplicationController
     end
   end
 
-  # DELETE /comments/:id
+  # DELETE /posts/:post_id/comments/:id
   def destroy
     unless owns_comment? || current_user.admin?
       return render json: { error: "Unauthorized" }, status: :unauthorized
@@ -39,7 +48,7 @@ class CommentsController < ApplicationController
   end
 
   def set_comment
-    @comment = Comment.find(params[:id])
+    @comment = @post.comments.find(params[:id])
   end
 
   def owns_comment?

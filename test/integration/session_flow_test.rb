@@ -31,7 +31,10 @@ class SessionFlowTest < ActionDispatch::IntegrationTest
     token = json_response["token"]
     assert_not_nil token, "Login response missing token"
 
-    assert_equal @user.username, json_response["username"]
+    # ✅ Access username inside "user" key
+    assert_equal @user.username, json_response["user"]["username"]
+    assert_equal @user.email, json_response["user"]["email"]
+    assert_equal @user.admin?, json_response["user"]["is_admin"]
   end
 
   test "login fails with invalid credentials" do
@@ -41,11 +44,9 @@ class SessionFlowTest < ActionDispatch::IntegrationTest
   end
 
   test "logout runs 200 OK and message" do
-    # 1. Log in to get fresh headers locally
     auth_headers = user_auth_headers(@user)
-
-    # 2. Use the token to access the protected logout route
     delete "/logout", headers: auth_headers
-    assert_response :ok # Correctly asserts 200
+    assert_response :ok
+    assert_equal "Logged out successfully", json_response["message"]
   end
 end
