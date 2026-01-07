@@ -7,11 +7,11 @@ class SessionsController < ApplicationController
 
     if user&.authenticate(params[:password])
       token = JsonWebToken.encode(user_id: user.id)
-      render json: { 
-        token: token, 
+      render json: {
+        token: token,
         user: {
-          username: user.username, 
-          email: user.email, 
+          username: user.username,
+          email: user.email,
           is_admin: user.admin?
         }
       }, status: :ok

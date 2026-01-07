@@ -14,7 +14,7 @@ class ApplicationController < ActionController::API
       render json: { error: "Forbidden. Admin privileges required" }, status: :forbidden and return
     end
   end
-  
+
   private
 
   def authenticate_request
@@ -30,7 +30,7 @@ class ApplicationController < ActionController::API
     begin
       # 3. Decode token
       @decoded = JsonWebToken.decode(token)
-      
+
       # 4. Find user
       @current_user = User.find(@decoded[:user_id])
 
