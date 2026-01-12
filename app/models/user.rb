@@ -35,6 +35,18 @@ class User < ApplicationRecord
     role.to_s.downcase == "user" || role.to_i == 0
   end
 
+
+  # --- Email Verification ---
+  before_create :generate_verification_token
+
+  def generate_verification_token
+    self.verification_token = SecureRandom.uuid
+  end
+
+  def mark_as_verified!
+    update(is_verified: true, verification_token: nil)
+  end
+
   # Helper for testing / fixtures
   def self.digest(string)
     # Use minimum cost in tests for speed, while maintaining proper hashing logic.
