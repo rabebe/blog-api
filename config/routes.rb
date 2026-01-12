@@ -5,6 +5,11 @@ Rails.application.routes.draw do
   post "signup", to: "users#create"
   delete "logout", to: "sessions#destroy"
 
+  # Email verification route
+  get "verify-email", to: "users#verify_email"
+  # Resend verification email
+  post "resend-verification", to: "users#resend_verification"
+
   # Posts, comments, likes, admin routes
   resources :posts do
     resources :comments, only: [ :index, :create, :destroy ]
