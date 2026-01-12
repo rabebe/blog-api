@@ -6,6 +6,13 @@ class SessionsController < ApplicationController
     user = User.find_by(email: params[:email])
 
     if user&.authenticate(params[:password])
+      # Check email verification for regular users
+      if !user.is_verified && !user.admin?
+        render json: { error: "Please verify your email first" }, status: :forbidden
+        return
+      end
+
+      # Generate token and return user info
       token = JsonWebToken.encode(user_id: user.id)
       render json: {
         token: token,
@@ -19,6 +26,7 @@ class SessionsController < ApplicationController
       render json: { error: "Invalid email or password" }, status: :unauthorized
     end
   end
+
 
   def destroy
     render json: { message: "Logged out successfully" }, status: :ok  end
