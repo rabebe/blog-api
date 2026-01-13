@@ -6,11 +6,8 @@ class UsersController < ApplicationController
     user = User.new(user_params)
 
     if user.save
-      user.update!(
-        verification_token: SecureRandom.uuid
-      )
 
-      UserMailer.verification_email(user).deliver_later
+      UserMailer.verification_email(user).deliver_now
 
       render json: {
         message: "Account created. Please check your email to verify your account.",
@@ -27,7 +24,7 @@ class UsersController < ApplicationController
   def verify_email
     user = User.find_by(verification_token: params[:token])
     if user
-      user.is_verified = true   # <-- use the correct column
+      user.is_verified = true
       user.verification_token = nil
       user.save!
       render json: { message: "Email verified successfully." }
@@ -45,7 +42,7 @@ class UsersController < ApplicationController
       if user.is_verified
         render json: { message: "Email is already verified." }, status: :ok
       else
-        user.generate_verification_token!  # We'll add this in the model
+        user.generate_verification_token!
         UserMailer.verification_email(user).deliver_now
         render json: { message: "Verification email resent." }, status: :ok
       end
