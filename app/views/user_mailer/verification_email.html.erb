@@ -1,0 +1,15 @@
+<h2>Welcome <%= @user.username %> </h2>
+
+<p>
+  Thanks for signing up! Please verify your email by clicking the link below:
+</p>
+
+<p>
+  <a href="<%= @verification_url %>">
+    Verify my email
+  </a>
+</p>
+
+<p>
+  If you did not create this account, you can safely ignore this email.
+</p>
