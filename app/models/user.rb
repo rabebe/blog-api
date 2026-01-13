@@ -43,6 +43,11 @@ class User < ApplicationRecord
     self.verification_token = SecureRandom.uuid
   end
 
+  # optional: force token regeneration later
+  def generate_verification_token!
+    update!(verification_token: SecureRandom.uuid)
+  end
+
   def mark_as_verified!
     update(is_verified: true, verification_token: nil)
   end
