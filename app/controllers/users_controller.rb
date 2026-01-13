@@ -15,7 +15,8 @@ class UsersController < ApplicationController
       render json: {
         message: "Account created. Please check your email to verify your account.",
         username: user.username,
-        email: user.email
+        email: user.email,
+        emailNotVerified: true
       }, status: :created
     else
       render json: { errors: user.errors.full_messages }, status: :unprocessable_entity
