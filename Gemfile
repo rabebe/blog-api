@@ -45,7 +45,7 @@ group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 
   # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
-  gem "brakeman", "~> 7.1.1"
+  gem "brakeman", "~> 8.0.2"
 
   # The BASE RuboCop linter
   gem "rubocop", require: false
