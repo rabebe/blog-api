@@ -1,34 +1,96 @@
-# Blog API
+# Headless Blog Engine (CMS API)
 
-This project implements a backend API for managing blog post content, featuring JWT-based authentication and a delegated authorization model where only a single designated administrator can perform write operations (Create, Update, Delete).
+## Project Overview
+This project is a production-ready **Headless CMS API** built with Ruby on Rails. It manages a complex relational data model with hierarchical interactions (comments, likes) and enforces a strict **Role-Based Access Control (RBAC)** security layer.
+
+Designed for low-latency content delivery, this backend powers modern decoupled frontends (Next.js, Mobile) with a focus on data integrity, cost-aware performance, and administrative flexibility.
+
+---
+
+## System Architecture
+
+The system follows a **decoupled middleware pattern**, serving as a single source of truth for multiple client types while maintaining high performance through strategic engineering choices:
+
+* **Counter-Caches:** We store `likes_count` and `comments_count` directly on the `Post` record. This trades a small amount of write-time performance for **$O(1)$ read-time performance**, eliminating N+1 query overhead in post listings.
+* **JWT Auth with RBAC:** Using stateless JWTs allows for horizontal scaling. We enforce RBAC via a custom `authorize_admin` filter to prevent unauthorized data modification and IDOR attacks.
+* **Markdown Persistence:** Content is stored as Markdown rather than HTML, reducing database bloat and providing the frontend total control over rendering styles.
+* **Delegated Authoring:** The Admin can assign posts to any `user_id` safely, allowing for a "Managed CMS" workflow where an administrator handles content entry for multiple authors.
+
+---
 
 ## Key Features
+* **Secure Authentication:** JWT-based identity verification with credential masking via environment variables.
+* **Tiered Permissions:** Strict separation between Public (Read), Authenticated (Interact), and Admin (Manage) roles.
+* **Social Engagement Graph:** Native support for likes and threaded user comments.
+* **Optimized Serialization:** Custom JSON shapes that include "interaction flags" (e.g., `user_liked: true`) to simplify frontend rendering logic.
+* **Maintenance Tools:** Custom Rake tasks for safe database reseeding without affecting core user tables.
 
-- JWT Authentication: All authorized API requests must include a valid JSON Web Token.
-- Admin-Only Write Access: All endpoints that modify data (`POST, PUT/PATCH, DELETE`) are secured by an authorize_admin filter.
-- Public Read Access: The list of all posts (GET /posts) and individual posts (`GET /posts/:id`) are publicly accessible.
-- Delegated Author: The authorized Admin user has the ability to create new posts and explicitly set the `user_id` of the author in the request body, allowing them to publish content on behalf of any user in the system.
+---
 
-## Security Model
+## User Authentication & Permissions
 
-The system operates on two distinct identity checks:
+### Authentication Flow
+The API uses **JWT-based identity verification**. Upon login, the client receives a token which must be included in the `Authorization` header for all protected endpoints.
 
-1. Authorization (Who is allowed in?): The `before_action :authorize_admin` filter checks the user_id inside the JWT token provided in the Authorization header. This ID must match the Admin's internal database ID (which is determined by the configured email/password) to pass.
+| Action | Public | Authenticated User | Admin |
+| :--- | :---: | :---: | :---: |
+| View Posts/Comments | ✅ | ✅ | ✅ |
+| Like / Comment | ❌ | ✅ | ✅ |
+| Create / Edit / Delete Posts | ❌ | ❌ | ✅ |
+| Approve / Moderate Content | ❌ | ❌ | ✅ |
 
-    - *The user needs to be the Admin to execute the request.*
+---
 
-2. Ownership (Who is the post assigned to?): The `post_params method` explicitly permits the user_id field from the request body. When the Admin creates a post, they are simply telling the database, "Save this post, and set its author ID to X."
+## API Design
 
-    - *The `user_id` set in the request body can be any valid user ID in the database, even if that user is not the Admin.*
+### Endpoint Example: Fetching Content
+`GET /api/posts/3`
+
+**Sample JSON Response**
+```json
+{
+  "id": 3,
+  "title": "Scaling Rails APIs",
+  "body": "## Strategy 1: Counter Caches...",
+  "author": { "username": "dev_lead", "role": "admin" },
+  "stats": {
+    "likes": 124,
+    "comments": 12
+  },
+  "current_user_context": {
+    "liked": true,
+    "can_edit": false
+  }
+}
+```
+
+### Primary endpoints
+| Method | Path | Description | Auth Required |
+| :---: | :--- | :--- | :---: |
+| GET | /api/posts | List all posts with pagination | No | |
+| GET | /api/posts/:id | Get a single post with comments and like status | | No |
+| POST | /api/posts | Create a new post | Yes |
+| PUT | /api/posts/:id | Update a post | Yes |
+| DELETE | /api/posts/:id | Delete a post | Yes |
+| POST | /api/posts/:id/like | Like a post | | Yes |
+| POST | /api/posts/:id/comments | Submit a comment | Yes |
+
+## Data Schema & ERD
+```mermaid
+erDiagram
+    USER ||--o{ POST : "authors"
+    USER ||--o{ COMMENT : "writes"
+    USER ||--o{ LIKE : "gives"
+    POST ||--o{ COMMENT : "contains"
+    POST ||--o{ LIKE : "receives"
+```
 
 ## Setup and Installation
 
 ### Prerequisites
 
 - Ruby 3.4.2
-
 - Rails 8.1.1
-
 - PostgreSQL
 
 ### Local Setup
@@ -40,7 +102,6 @@ The system operates on two distinct identity checks:
     ```
 
 2. Install dependencies:
-
     ```
     bundle install
     ```
@@ -77,41 +138,3 @@ A custom Rake task is available for reliably resetting the Post data without aff
 | Command | Purpose |
 |---------|---------|
 | rails db:safe_reseed | Safe Reset: Deletes all records from the posts table, resets the primary key ID counter back to 1, and re-runs the db/seeds.rb file to create fresh posts. |
-
-
-## API Endpoints
-
-The base URL for the API is assumed to be http://localhost:3000 locally.
-
-| HTTP Method | Path | Description | Authorization Required |
-|-------------|------|-------------|------------------------|
-| GET | /posts | Retrieves a list of all posts. | None
-| GET | /posts/:id | Retrieves a specific post. | None
-| POST | /posts | Creates a new post. (Admin Only) | JWT Token (Must be Admin)
-| PUT/PATCH | /posts/:id | Updates an existing post. (Admin Only) | JWT Token (Must be Admin)
-| DELETE | /posts/:id | Deletes a specific post. (Admin Only) | JWT Token (Must be Admin)
-
-Example Request `(POST /posts)`
-
-To create a new post and assign it to a non-admin user (e.g., `user_id: 99`), the Admin would send:
-
-Headers:
-
-```
-Authorization: Bearer [Admin's JWT Token]
-Content-Type: application/json
-```
-
-Body:
-
-```
-{
-  "post": {
-    "title": "A New Article",
-    "body": "This was published by the Admin but authored by User 99.",
-    "user_id": 99 
-  }
-}
-```
-
-The `post_params` method handles the `user_id` safely because the request has already been authenticated as coming from the trusted Admin account.
