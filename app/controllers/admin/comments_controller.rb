@@ -6,8 +6,8 @@ module Admin
 
     # GET /admin/comments
     def index
-      comments = Comment.where(status: 0).order(created_at: :asc)
-      render json: comments
+      comments = Comment.includes(:user).where(status: 0).order(created_at: :asc)
+      render json: comments.as_json(include: { user: { only: :username } })
     end
 
     # PATCH /admin/comments/:id/approve

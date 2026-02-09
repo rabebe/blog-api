@@ -85,20 +85,115 @@ erDiagram
     POST ||--o{ LIKE : "receives"
 ```
 
-## Setup and Installation
+- **Non-Admin JWT**: 403 Forbidden
+- **Malformed/Missing JWT**: 401 Unauthorized
 
-### Prerequisites
 
+**3. Ownership Logic**
+- Admin can permit `user_id` in `post_params` to act as a CMS Editor.
+- Maintains relational integrity while allowing team content publishing.
+
+ ---
+
+## Database Schema
+- Relational PostgreSQL structure
+- Optimized for blog content and multi-user interactions
+
+```mermaid
+erDiagram
+    USERS {
+        int id PK
+        string username
+        string email
+        string password_digest
+        boolean is_verified
+        string verification_token
+        int role
+        datetime created_at
+        datetime updated_at
+    }
+
+    POSTS {
+        int id PK
+        string author
+        string title
+        text body
+        int comments_count
+        int likes_count
+        datetime published_at
+        int user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    COMMENTS {
+        int id PK
+        text body
+        int status
+        int post_id FK
+        int user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    LIKES {
+        int id PK
+        int post_id FK
+        int user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    USERS ||--o{ POSTS : "authors"
+    USERS ||--o{ COMMENTS : "comments"
+    USERS ||--o{ LIKES : "likes"
+    POSTS ||--o{ COMMENTS : "comments"
+    POSTS ||--o{ LIKES : "likes"
+```
+
+---
+
+## Testing Suite
+This API is backed by a comprehensive integration test suite that ensures security, authorization, and functionality.
+
+Coverage Highlights:
+
+- **Public Access**
+    - Confirms anyone can read posts without authentication (`GET /posts`, `GET /posts/:id`).
+- **Unauthorized Access**
+    - Ensures non-admin users cannot create, update, or delete posts.
+    - Validates correct HTTP responses (`401 Unauthorized`) and that database remains unchanged.
+- **Authorized Admin Access**
+    - Validates admin JWT login flow (`POST /login`).
+    - Confirms admin can create and update posts.
+    - Checks ownership logic: admin can assign posts to any user_id.
+- **Security Assertions**
+    - Only is_verified users can authenticate
+    - Admin-only routes are protected (`403 Forbidden` for unauthorized users)
+    - Malformed or missing tokens return `401 Unauthorized`
+
+```bash
+# Run all tests
+rails test
+```
+Example: The `PostAuthorizationTest` class simulates real API requests for public, unauthorized, and admin users, ensuring authentication and authorization rules are enforced end-to-end.
+
+## Tech Stack
 - Ruby 3.4.2
 - Rails 8.1.1
 - PostgreSQL
+- JWT for stateless authentication
 
-### Local Setup
+
+
+
+
+## Setup Instructions
 
 1. Clone the repository:
     ```
     git clone https://github.com/rabebe/blog-api
-    cd secure-content-api
+    cd blog-api
     ```
 
 2. Install dependencies:
@@ -111,7 +206,7 @@ erDiagram
     Note on Secrets: The `SECRET_KEY_BASE` for JWT encryption is handled automatically by Rails using the encrypted credentials file (credentials.yml.enc).
 
     ```# .env file content
-    # The email and password used to identify (and possibly seed) the single Admin user
+    # The email and password used to identify and seed the single Admin user
     ADMIN_EMAIL=admin@example.com
     ADMIN_PASSWORD=supersecurepassword
     ```
@@ -121,7 +216,6 @@ erDiagram
     ```
     rails db:create
     rails db:migrate
-    # Ensure this command seeds the Admin user using the environment variables above
     rails db:seed
     ```
 
