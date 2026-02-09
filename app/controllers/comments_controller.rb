@@ -8,8 +8,8 @@ class CommentsController < ApplicationController
 
   # GET /posts/:post_id/comments
   def index
-    @comments = @post.comments.where(status: 1).order(created_at: :desc)
-    render json: @comments.as_json(include: { user: { only: :name } })
+    @comments = @post.comments.includes(:user).where(status: 1).order(created_at: :desc)
+    render json: @comments.as_json(include: { user: { only: :username } })
   end
 
   # POST /posts/:post_id/comments
