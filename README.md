@@ -1,42 +1,142 @@
 # Blog API
 
-This project implements a backend API for managing blog post content, featuring JWT-based authentication and a delegated authorization model where only a single designated administrator can perform write operations (Create, Update, Delete).
+A Ruby on Rails backend API for managing blog content, designed with a single-admin authorization model. The system uses JWT-based authentication and intentionally centralizes all write access to a designated administrator while keeping read access public.
 
-## Key Features
+This system separates authorship from publishing, ensures public read access, and enforces strict admin control over content changes.
 
-- JWT Authentication: All authorized API requests must include a valid JSON Web Token.
-- Admin-Only Write Access: All endpoints that modify data (`POST, PUT/PATCH, DELETE`) are secured by an authorize_admin filter.
-- Public Read Access: The list of all posts (GET /posts) and individual posts (`GET /posts/:id`) are publicly accessible.
-- Delegated Author: The authorized Admin user has the ability to create new posts and explicitly set the `user_id` of the author in the request body, allowing them to publish content on behalf of any user in the system.
+---
 
-## Security Model
+## Core Features
 
-The system operates on two distinct identity checks:
+- **JWT Authentication:** Stateless session management for secure user access.
+- **Admin-Only Write Operations:** `POST`, `PUT/PATCH`, `DELETE` endpoints are protected for admin users only.
+- **Public Read Access:** Optimized `GET` endpoints for content consumption without authentication.
+- **Delegated Authorship Model:** Admin can publish posts and assign content to any `user_id`, separating the Publisher role from the Author role.
 
-1. Authorization (Who is allowed in?): The `before_action :authorize_admin` filter checks the user_id inside the JWT token provided in the Authorization header. This ID must match the Admin's internal database ID (which is determined by the configured email/password) to pass.
+## Security & Authorization Model
 
-    - *The user needs to be the Admin to execute the request.*
+**1. Verification Gate**
+- Users must have `is_verified: true` in the database to authenticate.
+- Prevents unapproved accounts from obtaining JWTs.
 
-2. Ownership (Who is the post assigned to?): The `post_params method` explicitly permits the user_id field from the request body. When the Admin creates a post, they are simply telling the database, "Save this post, and set its author ID to X."
+**2. Authorization Logic**
+- Admin routes are protected by a centralized filter:
+```ruby
+# app/controllers/application_controller.rb
+def authorize_admin
+  render json: { error: 'Admin access required' }, status: :forbidden unless current_user&.admin?
+end
+```
 
-    - *The `user_id` set in the request body can be any valid user ID in the database, even if that user is not the Admin.*
+- **Non-Admin JWT**: 403 Forbidden
+- **Malformed/Missing JWT**: 401 Unauthorized
 
-## Setup and Installation
 
-### Prerequisites
+**3. Ownership Logic**
+- Admin can permit `user_id` in `post_params` to act as a CMS Editor.
+- Maintains relational integrity while allowing team content publishing.
 
+ ---
+
+## Database Schema
+- Relational PostgreSQL structure
+- Optimized for blog content and multi-user interactions
+
+```mermaid
+erDiagram
+    USERS {
+        int id PK
+        string username
+        string email
+        string password_digest
+        boolean is_verified
+        string verification_token
+        int role
+        datetime created_at
+        datetime updated_at
+    }
+
+    POSTS {
+        int id PK
+        string author
+        string title
+        text body
+        int comments_count
+        int likes_count
+        datetime published_at
+        int user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    COMMENTS {
+        int id PK
+        text body
+        int status
+        int post_id FK
+        int user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    LIKES {
+        int id PK
+        int post_id FK
+        int user_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    USERS ||--o{ POSTS : "authors"
+    USERS ||--o{ COMMENTS : "comments"
+    USERS ||--o{ LIKES : "likes"
+    POSTS ||--o{ COMMENTS : "comments"
+    POSTS ||--o{ LIKES : "likes"
+```
+
+---
+
+## Testing Suite
+This API is backed by a comprehensive integration test suite that ensures security, authorization, and functionality.
+
+Coverage Highlights:
+
+- **Public Access**
+    - Confirms anyone can read posts without authentication (`GET /posts`, `GET /posts/:id`).
+- **Unauthorized Access**
+    - Ensures non-admin users cannot create, update, or delete posts.
+    - Validates correct HTTP responses (`401 Unauthorized`) and that database remains unchanged.
+- **Authorized Admin Access**
+    - Validates admin JWT login flow (`POST /login`).
+    - Confirms admin can create and update posts.
+    - Checks ownership logic: admin can assign posts to any user_id.
+- **Security Assertions**
+    - Only is_verified users can authenticate
+    - Admin-only routes are protected (`403 Forbidden` for unauthorized users)
+    - Malformed or missing tokens return `401 Unauthorized`
+
+```bash
+# Run all tests
+rails test
+```
+Example: The `PostAuthorizationTest` class simulates real API requests for public, unauthorized, and admin users, ensuring authentication and authorization rules are enforced end-to-end.
+
+## Tech Stack
 - Ruby 3.4.2
-
 - Rails 8.1.1
-
 - PostgreSQL
+- JWT for stateless authentication
 
-### Local Setup
+
+
+
+
+## Setup Instructions
 
 1. Clone the repository:
     ```
     git clone https://github.com/rabebe/blog-api
-    cd secure-content-api
+    cd blog-api
     ```
 
 2. Install dependencies:
@@ -50,7 +150,7 @@ The system operates on two distinct identity checks:
     Note on Secrets: The `SECRET_KEY_BASE` for JWT encryption is handled automatically by Rails using the encrypted credentials file (credentials.yml.enc).
 
     ```# .env file content
-    # The email and password used to identify (and possibly seed) the single Admin user
+    # The email and password used to identify and seed the single Admin user
     ADMIN_EMAIL=admin@example.com
     ADMIN_PASSWORD=supersecurepassword
     ```
@@ -60,7 +160,6 @@ The system operates on two distinct identity checks:
     ```
     rails db:create
     rails db:migrate
-    # Ensure this command seeds the Admin user using the environment variables above
     rails db:seed
     ```
 
@@ -83,27 +182,27 @@ A custom Rake task is available for reliably resetting the Post data without aff
 
 The base URL for the API is assumed to be http://localhost:3000 locally.
 
-| HTTP Method | Path | Description | Authorization Required |
+| Method | Endpoint | Description | Auth Required |
 |-------------|------|-------------|------------------------|
-| GET | /posts | Retrieves a list of all posts. | None
-| GET | /posts/:id | Retrieves a specific post. | None
-| POST | /posts | Creates a new post. (Admin Only) | JWT Token (Must be Admin)
-| PUT/PATCH | /posts/:id | Updates an existing post. (Admin Only) | JWT Token (Must be Admin)
-| DELETE | /posts/:id | Deletes a specific post. (Admin Only) | JWT Token (Must be Admin)
+| POST | /signup | Register a new account | None
+| GET | /verify-email | Required to activate account | Token in URL
+| POST | /login | Receive JWT (Only if verified) | Valid Credentials
+| GET | /posts | List of all posts. | None
+| GET | /posts/:id | Retrieves a specific post | None
+| POST | /posts | Creates a new post | Admin JWT
+| PUT/PATCH | /posts/:id | Updates an existing post | Admin JWT 
+| DELETE | /posts/:id | Deletes a specific post | Admin JWT
+| POST | /posts/:id/comments | Adds a comment to a post | User JWT
+| PATCH | /admin/comments/:id | Moderates a comment | Admin JWT
 
-Example Request `(POST /posts)`
-
-To create a new post and assign it to a non-admin user (e.g., `user_id: 99`), the Admin would send:
-
+## Example: Create Post as Admin
 Headers:
-
 ```
 Authorization: Bearer [Admin's JWT Token]
 Content-Type: application/json
 ```
 
 Body:
-
 ```
 {
   "post": {
@@ -114,4 +213,13 @@ Body:
 }
 ```
 
-The `post_params` method handles the `user_id` safely because the request has already been authenticated as coming from the trusted Admin account.
+## Security Considerations
+- Admin-only operations prevent accidental or malicious data changes
+- JWT + verification ensures only valid users can perform sensitive actions
+- Ownership model separates publisher vs author responsibilities for team collaboration
+- Tested end-to-end to ensure all authentication and authorization rules are enforced
+
+---
+
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
